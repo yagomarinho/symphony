@@ -1,0 +1,21 @@
+{
+  "name": "@symphony/core",
+  "version": "0.1.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "tsnd --respawn --transpile-only --ignore-watch node_modules src/index.ts",
+    "test": "jest"
+  },
+  "author": {
+    "name": "Yago Marinho",
+    "email": "contato@yagomarinho.com.br"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yagomarinho/symphony"
+  },
+  "devDependencies": {
+    "@symphony/jest": "^1.0.0"
+  },
+  "license": "MIT"
+}

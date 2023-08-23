@@ -1,0 +1,28 @@
+{
+  "name": "@symphony/eslint",
+  "private": true,
+  "version": "1.0.0",
+  "main": ".eslintrc.js",
+  "scripts": {
+    "lint": "eslint ."
+  },
+  "author": {
+    "name": "Yago Marinho",
+    "email": "contato@yagomarinho.com.br"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yagomarinho/symphony"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.3.0",
+    "@typescript-eslint/parser": "^6.3.0",
+    "eslint": "^8.47.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-import-resolver-typescript": "^3.6.0",
+    "eslint-plugin-import": "^2.28.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "prettier": "^3.0.1"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "@symphony/symphony",
+  "private": true,
+  "version": "0.1.0",
+  "author": {
+    "name": "Yago Marinho",
+    "email": "contato@yagomarinho.com.br"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yagomarinho/symphony"
+  },
+  "workspaces": {
+    "packages": [
+      "packages/*",
+      "config/*"
+    ]
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@symphony/eslint": "1.0.0",
+    "@symphony/jest": "1.0.0",
+    "typescript": "^5.1.6"
+  }
+}
