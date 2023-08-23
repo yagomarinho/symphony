@@ -224,10 +224,14 @@ describe('helpers unit testing', () => {
     expect(initialState.count).toBe(0)
   })
 
-  it('shouba', () => {
+  it('should update color using reactions', () => {
+    // Initial state of the component
     const initialState = { color: 'blue' }
+
+    // Create a mutable state with a predefined changeColorTo value
     const mutable = createState({ changeColorTo: 'blue' })
 
+    // Create a reaction to update the color in the state
     const updateColor = createReaction({
       lens: {
         setter: color => ({ color }),
@@ -235,6 +239,7 @@ describe('helpers unit testing', () => {
       pure: color => color,
     })
 
+    // Create an action to get the color from the state
     const getColor = createAction({
       type: 'reader',
       lens: {
@@ -243,12 +248,14 @@ describe('helpers unit testing', () => {
       pure: color => color,
     })
 
+    // Function to handle color changes using reactions
     function colorChanger(reactions) {
       return mutable.subscribe(({ changeColorTo }) =>
         reactions.updateColor(changeColorTo),
       )
     }
 
+    // Create the component with defined actions, reactions, and initial state
     const component = createComponent(
       {
         actions: { getColor },
@@ -257,10 +264,13 @@ describe('helpers unit testing', () => {
       { state: initialState, subscribe: { colorChanger } },
     )
 
+    // Test initial color value
     expect(component.getColor()).toBe('blue')
 
+    // Simulate a color change by updating the mutable state
     mutable(() => createPair.second({ changeColorTo: 'green' }))
 
+    // Test if the color has been updated correctly
     expect(component.getColor()).toBe('green')
   })
 })
