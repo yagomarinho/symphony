@@ -1,14 +1,16 @@
 {
   "name": "@symphony/core",
   "version": "0.1.0",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
+    "build": "tsc --project tsconfig.build.json",
     "dev": "tsnd --respawn --transpile-only --ignore-watch node_modules src/index.ts",
     "test": "jest"
   },
   "author": {
     "name": "Yago Marinho",
-    "email": "contato@yagomarinho.com.br"
+    "email": "marinho.rj2@hotmail.com"
   },
   "repository": {
     "type": "git",

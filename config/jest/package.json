@@ -1,13 +1,14 @@
 {
   "name": "@symphony/jest",
   "version": "1.0.0",
+  "private": true,
   "main": "jest.config.ts",
   "scripts": {
     "test": "jest"
   },
   "author": {
     "name": "Yago Marinho",
-    "email": "contato@yagomarinho.com.br"
+    "email": "marinho.rj2@hotmail.com"
   },
   "repository": {
     "type": "git",
