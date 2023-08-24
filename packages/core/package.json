@@ -1,5 +1,5 @@
 {
-  "name": "@symphony/core",
+  "name": "@symphony.js/core",
   "version": "0.1.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -17,7 +17,7 @@
     "url": "git+https://github.com/yagomarinho/symphony"
   },
   "devDependencies": {
-    "@symphony/jest": "^1.0.0"
+    "@symphony.js/jest": "^1.0.0"
   },
   "license": "MIT"
 }
