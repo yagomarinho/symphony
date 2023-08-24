@@ -19,42 +19,40 @@ Instalação via npm
 ```
 
 ## Documentação
-*A documentação será lançada em breve*
+
+_A documentação será lançada em breve_
 
 ## Exemplos
+
 Este é um exemplo de um componente de contador que contém os 3 principais elementos de um componente State > View > Action
 
 ```javascript
-import { createAction, createComponent} from '@symphony.js/core';
+import { createAction, createComponent } from '@symphony.js/core'
 
-const initialState = { count: 0 };
+const initialState = { count: 0 }
 
-const identity = x => x;
+const identity = x => x
+const countLens = {
+  getter: state => state.count,
+  setter: (value, state/*passado como ultimo parametro*/) => ({ count: value }),
+}
 
 const getCount = createAction({
   type: 'reader',
-  lens: {
-    getter: (state) => state.count
-  },
-  pure: identity,
-});
+  lens: countLens,
+  pure: identity, // Reader Signature :: s => a
+})
 
 const increment = createAction({
   type: 'state',
-  lens: {
-    getter: (state) => state.count
-    setter: (value, state/*ultimo parâmetro*/) => ({ count: value })
-  },
-  pure: count => count + 1
+  lens: countLens,
+  pure: count => [undefined, count + 1], // State Signature :: s => [a, s]
 })
 
 const decrement = createAction({
   type: 'state',
-  lens: {
-    getter: (state) => state.count
-    setter: (value, state) => ({ count: value })
-  },
-  pure: count => count - 1
+  lens: countLens,
+  pure: count => [undefined, count - 1], // State Signature :: s => [a, s]
 })
 
 const stringView = (state, actions) => `<div>Valor atual: ${state.count}</div>`
@@ -66,20 +64,20 @@ const config = {
     decrement,
   },
   view: stringView,
-};
+}
 
 const init = {
   state: initialState,
-};
+}
 
-const component = createComponent(config, init);
+const component = createComponent(config, init)
 
 component.getCount() // log 0
-component.increment() // log 1
-component.increment() // log 2
-component.increment() // log 3
-component.decrement() // log 2
-component.decrement() // log 1
+component.increment() // result undefined state.count 1
+component.increment() // result undefined state.count 2
+component.increment() // result undefined state.count 3
+component.decrement() // result undefined state.count 2
+component.decrement() // result undefined state.count 1
 
 initialState.count // log 0 Immutable
 
