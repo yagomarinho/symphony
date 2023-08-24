@@ -22,7 +22,7 @@ Instalação via npm
 *A documentação será lançada em breve*
 
 ## Exemplos
-Este é um exemplo de um compontente de contador que contém os 3 principais elementos de um componente State > View > Action
+Este é um exemplo de um componente de contador que contém os 3 principais elementos de um componente State > View > Action
 
 ```javascript
 import { createAction, createComponent} from '@symphony.js/core';
