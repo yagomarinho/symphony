@@ -1,5 +1,5 @@
 {
-  "name": "@symphony/jest",
+  "name": "@symphony.js/jest",
   "version": "1.0.0",
   "private": true,
   "main": "jest.config.ts",

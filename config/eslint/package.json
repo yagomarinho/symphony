@@ -1,5 +1,5 @@
 {
-  "name": "@symphony/eslint",
+  "name": "@symphony.js/eslint",
   "private": true,
   "version": "1.0.0",
   "main": ".eslintrc.js",

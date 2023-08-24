@@ -1,5 +1,5 @@
 {
-  "name": "@symphony/symphony",
+  "name": "@symphony.js/symphony",
   "private": true,
   "author": {
     "name": "Yago Marinho",
@@ -17,8 +17,8 @@
   },
   "license": "MIT",
   "devDependencies": {
-    "@symphony/eslint": "1.0.0",
-    "@symphony/jest": "1.0.0",
+    "@symphony.js/eslint": "1.0.0",
+    "@symphony.js/jest": "1.0.0",
     "typescript": "^5.1.6"
   }
 }
