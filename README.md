@@ -228,14 +228,133 @@ anotherComponent.render() // 'view'
 
 const observable = createComponent({ observable: true /*...*/ }, init)
 
+// const consumer = () => { ... }
+
+// método de inscrição de um consumer
 const subscription = observable.subscribe(consumer)
 
 // métodos de cancelamento de inscrição
-
 subscription() // consumer off
 observable.unsubscribe(consumer) // ou, essa outra alternativa
 
-
+// Finalizando o ciclo de vida do componente
 component.dispose()
 component.getState() // to throw
 ```
+
+### createInjectable(fnToInject): Injectable
+
+A função `createInjectable` possibilita a criação de funções marcadas como injetáveis, permitindo a injeção de dependência em tempo de execução nas ações dos componentes Symphony. Esse recurso é crucial para garantir que as ações dos componentes possam interagir com o contexto mais amplo do componente de forma flexível, usando recursos externos ou serviços, sem a necessidade de um acomplamento rígido entre os componentes individuais.
+
+```javascript
+import { createInjectable, createComponent } from '@symphony.js/core'
+
+const initialState = { count: 0 }
+
+function getCount() {
+  /**
+   * getCountToInject é a função que fará uso do estado do componente
+   * e retornará o valor do contador
+   */
+  function getCountToInject(context) {
+    // O contexto do componente possui o estado
+    const { state } = context
+
+    // As "Actions" possuem o a assinatura de state
+    // monad | state => [result, state]
+    // o que será explicado em breve
+    return [state.count, context]
+  }
+
+  return createInjectable(getCountToInject)
+}
+
+const config = {
+  actions: {
+    getCount,
+  },
+}
+
+const init = {
+  state: initialState,
+}
+
+const component = createComponent(config, init)
+
+/**
+ * Internamente na função createComponent, o resultado da função getCount
+ * será empurrado para um resolver que analisará se o retorno da função
+ * é uma função injetavél e então poderá prover, em tempo de execução, o
+ * contexto do componente. Retornando apenas a computação final.
+ */
+component.getCount() // log 0 (zero)
+```
+
+Percebe-se pelo exemplo anterior que, o Symphony baseia-se em uma abordagem de "function composition" (composição de funções) como pedra angular de sua arquitetura. Isso significa que as funções são projetadas para serem puras e independentes, tornando o código mais legível, testável e modular. Através do uso das funções injetáveis e dos componentes, o Symphony promove uma arquitetura mais robusta e flexível, que facilita a construção e manutenção de aplicações complexas.
+
+Uma parte crucial para o entendimento dessa arquitetura são os monads em teoria das categorias, que é facilmente percebida na assinatura das Actions dos componentes. As assinaturas de ações seguem o padrão `State Monad :: State s a => s -> (a, s)`, onde o estado é recebido como entrada e, após a execução da ação, tanto o resultado quanto o estado modificado são retornados como uma lista. Isso permite uma composição fluente de ações, onde o resultado de uma ação pode ser encadeado como entrada para outra, mantendo uma manipulação clara e controlada do estado.
+
+#### E porque monads são tão importantes?
+
+Eles oferecem uma maneira de estruturar o código de forma eficaz, permitindo a composição de operações complexas de maneira limpa e controlada. Em um cenário sem monads, abordagens alternativas como a mutabilidade direta dos componentes ou o uso de reducers poderiam ser empregadas. No entanto, essas abordagens muitas vezes levam a problemas como efeitos colaterais indesejados, dificuldade na rastreabilidade de mudanças e maior complexidade de código, principalmente quando se trata de composição de funções. Como no exemplo abaixo:
+
+```javascript
+/**
+ * A função abaixo, chamada 'compose', oferece uma maneira poderosa
+ * de compor várias funções em uma única função resultante. Isso permite
+ * encadear os resultados das funções, da direita para a esquerda, formando
+ * uma composição funcional. O primeiro argumento dessa função é a função
+ * que receberá a entrada original, e os argumentos subsequentes são as
+ * funções que serão aplicadas sucessivamente aos resultados, criando uma
+ * cadeia de transformações.
+ */
+function compose(...fns) {
+  return x => fns.reduceRight((v, f) => f(v), x)
+}
+
+/**
+ * No entanto, quando trabalhamos com reducers, essa composição funcional
+ * pode ser prejudicada devido à natureza própria do reducer. Reducers são
+ * geralmente usados para processar ações e atualizar o estado em um cenário
+ * de gerenciamento de estado, como o Redux. Esses processos podem envolver
+ * lógicas condicionais complexas, o que pode tornar a composição de funções
+ * menos elegante.
+ *
+ * O exemplo abaixo ilustra um reducer que lida com diferentes tipos de ações,
+ * introduzindo condições que podem dificultar a aplicação da composição funcional.
+ */
+
+function reducer(state, action) {
+  switch (action.type) {
+    case 'TYPE1':
+      return { ...state /*something 1*/ }
+    case 'TYPE2':
+      return { ...state /*something 2*/ }
+    default:
+      return state
+  }
+}
+
+/**
+ * Entretanto, quando trabalhamos com monads, podemos aproveitar os benefícios
+ * da composição funcional e da atualização controlada do estado. Monads oferecem
+ * um paradigma onde cada operação retorna uma estrutura especial, permitindo
+ * controlar como os dados fluem e evitando efeitos colaterais indesejados.
+ * Isso é especialmente útil em cenários onde múltiplas transformações precisam
+ * ser aplicadas ao estado, mantendo a clareza e previsibilidade.
+ */
+
+function State(state) {
+  // Aqui, 'computation' representaria alguma operação aplicada ao estado
+  const computation = /* ... */
+
+  // 'updatedState' representa o estado após a operação
+  const updatedState = /* ... */
+
+  // Retornar uma tupla que encapsula a operação e o estado atualizado
+  return [computation, updatedState];
+}
+
+```
+
+É importante ressaltar que, como usuário da Symphony, você não precisa se preocupar em resolver essas complexas composições por conta própria. Afinal, esse é o propósito central da biblioteca: oferecer uma abstração que cuida desses detalhes intricados para você. No entanto, é valioso entender que essas estruturas subjacentes constituem os alicerces da arquitetura da Symphony.
