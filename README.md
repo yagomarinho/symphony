@@ -244,7 +244,7 @@ component.getState() // to throw
 
 ### createInjectable(fnToInject): Injectable
 
-A função `createInjectable` possibilita a criação de funções marcadas como injetáveis, permitindo a injeção de dependência em tempo de execução nas ações dos componentes Symphony. Esse recurso é crucial para garantir que as ações dos componentes possam interagir com o contexto mais amplo do componente de forma flexível, usando recursos externos ou serviços, sem a necessidade de um acomplamento rígido entre os componentes individuais.
+A função `createInjectable` possibilita a criação de funções marcadas como **injetáveis (Injectable)**, permitindo a injeção de dependência em tempo de execução nas ações dos componentes Symphony. Esse recurso é crucial para garantir que as ações dos componentes possam interagir com o contexto mais amplo do componente de forma flexível, usando recursos externos ou serviços, sem a necessidade de um acomplamento rígido entre os componentes individuais.
 
 ```javascript
 import { createInjectable, createComponent } from '@symphony.js/core'
@@ -260,7 +260,7 @@ function getCount() {
     // O contexto do componente possui o estado
     const { state } = context
 
-    // As "Actions" possuem o a assinatura de state
+    // As "Actions" possuem a assinatura de state
     // monad | state => [result, state]
     // o que será explicado em breve
     return [state.count, context]
@@ -312,6 +312,17 @@ function compose(...fns) {
   return x => fns.reduceRight((v, f) => f(v), x)
 }
 
+// Por exemplo, criaremos uma transformação de string
+const split = x => x.split('')
+const reverse = x => x.reverse()
+const join = x => x.join('')
+
+// Este seria um exemplo simples de uma cadeia de transformações
+// onde seria possível aplicar a composição de funções
+//
+// obs.: a ordem da cadeia deve ser lido da direita para a esquerda
+const reverseString = compose(join, reverse, split)
+
 /**
  * No entanto, quando trabalhamos com reducers, essa composição funcional
  * pode ser prejudicada devido à natureza própria do reducer. Reducers são
@@ -346,15 +357,116 @@ function reducer(state, action) {
 
 function State(state) {
   // Aqui, 'computation' representaria alguma operação aplicada ao estado
-  const computation = /* ... */
+  const computation = {
+    /* ... */
+  }
 
   // 'updatedState' representa o estado após a operação
-  const updatedState = /* ... */
+  const updatedState = {
+    /* ... */
+  }
 
   // Retornar uma tupla que encapsula a operação e o estado atualizado
-  return [computation, updatedState];
+  return [computation, updatedState]
 }
-
 ```
 
 É importante ressaltar que, como usuário da Symphony, você não precisa se preocupar em resolver essas complexas composições por conta própria. Afinal, esse é o propósito central da biblioteca: oferecer uma abstração que cuida desses detalhes intricados para você. No entanto, é valioso entender que essas estruturas subjacentes constituem os alicerces da arquitetura da Symphony.
+
+Dito isso, vamos analisar como aplicar o uso da função `createInjectable` nas três subdivisões de `actions` do componente, presentes na construção de uma instância.
+
+#### Action
+
+A primeira e mais natural é a `action`, faz parte da tríade `state > view > action`, responsável por produzir modificações no estado e consequente alteração na visualização, como discutido anteriormente, a assinatura padrão de `Injectable` é composto pela forma `State Monad :: State s a => s -> (a, s)`.
+
+```javascript
+import { createComponent, createInjectable } from '@symphony.js/core'
+
+const initialState = {
+  user: {
+    name: 'John Doe',
+  },
+}
+
+function getUserName() {
+  function getUserNameToInject(context) {
+    const { user } = context.state
+
+    return [user.name, context] // no context updates
+  }
+
+  return createInjectable(getUserNameToInject)
+}
+
+function setUserName(name) {
+  function setUserNameToInject(context) {
+    const { state } = context // get state
+    const { user } = state // get user
+
+    const updatedContext = {
+      // update context
+      ...context,
+      state: {
+        ...state,
+        user: {
+          ...user,
+          name, // set updated name
+        },
+      },
+    }
+
+    return [undefined, updatedContext] // return new context
+  }
+
+  return createInjectable(setUserNameToInject)
+}
+
+const config = {
+  actions: {
+    getUserName,
+    setUserName,
+  },
+}
+
+const init = {
+  state: initialState,
+}
+
+const component = createComponent(config, init)
+
+component.getUserName() // log 'John Doe'
+component.setUserName('Jane Doe') // result undefined state.user.name === 'Jane Doe'
+component.getUserName() // log 'Jane Doe'
+```
+
+Como evidenciado, o processo de criação de uma `action` pode ser considerado repetitivo, seguindo um algoritmo de fácil compreensão:
+
+1. ler o estado presente no contexto
+2. realizar a operação
+3. atualizar o contexto
+4. retornar a combinação entre resultado e contexto atualizado
+
+Devido a essa repetição, a API `createAction` foi disponibilizada para simplificar a construção de actions, eliminando a necessidade de reproduzir essas etapas em cada função. Vamos examinar como essa API funciona para otimizar esse processo:
+
+```javascript
+import { createAction, createComponent } from '@symphony.js/core'
+
+const initialState = {
+  user: {
+    name: 'John Doe',
+  },
+}
+
+const identity = x => x
+
+const userNameLens = {
+  getter: state => state.user.name,
+  setter: (name, state) => ({ ...state, user: { ...state.user, name } }),
+}
+
+const getUserName = createAction({
+  type: 'reader',
+  lens: userNameLens,
+  pure: identity,
+})
+```
