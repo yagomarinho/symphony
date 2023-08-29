@@ -337,16 +337,30 @@ const reverseString = compose(join, reverse, split)
 
 function reducer(state, action) {
   switch (action.type) {
-    case 'TYPE1':
-      return { ...state /*something 1*/ }
-    case 'TYPE2':
-      return { ...state /*something 2*/ }
+    case 'name':
+      return { ...state, name: action.payload }
+    case 'email':
+      return { ...state, email: action.payload }
     default:
       return state
   }
 }
 
 /**
+ * Caso fosse necessário realizar uma operação de composição de função com reducer
+ * seria dificultado pela própria natureza incompátivel
+ */
+
+const updateName = state => name => reducer(state, { type: 'name', payload: name })
+const updateEmail = state => email => reducer(state, { type: 'email', payload: email })
+
+const updateNameAndEmail = compose(updateEmail, updateName) // ERROR
+
+/**
+ * Essa dificuldade não significa que seja impossível de realizar, como disse
+ * anteriormente, com uma maior complexidade de código pode-se chegar ao mesmo
+ * resultado.
+ *
  * Entretanto, quando trabalhamos com monads, podemos aproveitar os benefícios
  * da composição funcional e da atualização controlada do estado. Monads oferecem
  * um paradigma onde cada operação retorna uma estrutura especial, permitindo
@@ -355,20 +369,41 @@ function reducer(state, action) {
  * ser aplicadas ao estado, mantendo a clareza e previsibilidade.
  */
 
-function State(state) {
-  // Aqui, 'computation' representaria alguma operação aplicada ao estado
-  const computation = {
-    /* ... */
-  }
-
-  // 'updatedState' representa o estado após a operação
-  const updatedState = {
-    /* ... */
-  }
-
-  // Retornar uma tupla que encapsula a operação e o estado atualizado
-  return [computation, updatedState]
+function updateName(props) {
+  return state => [props, { ...state, name: props.name }]
 }
+
+function updateEmail(props) {
+  return state => [props, { ...state, email: props.email }]
+}
+
+function updatePhone(props) {
+  return state => [props, { ...state, phone: props.phone }]
+}
+
+/**
+ * No caso de monads, composição de funções podem ser facilmente estabelecidas
+ * com uma ou duas funções auxiliares, e como se percebe nas funções acima
+ * estabelecidas, cada uma delas é legível, testável e modular.
+ */
+
+const bind = fmap => monad => {
+  return state => {
+    const [result1, updatedState1] = monad(state)
+    return fmap(result1)(updatedState1)
+  }
+}
+
+const updateRegistration = props =>
+  compose(bind(updatePhone), bind(updateEmail))(updateName(props))
+
+const result = updateRegistration({
+  name: 'John Doe',
+  email: 'john@example.com',
+  phone: '+999 9999 999',
+})({
+  /*initialState here*/
+}) // OK!
 ```
 
 É importante ressaltar que, como usuário da Symphony, você não precisa se preocupar em resolver essas complexas composições por conta própria. Afinal, esse é o propósito central da biblioteca: oferecer uma abstração que cuida desses detalhes intricados para você. No entanto, é valioso entender que essas estruturas subjacentes constituem os alicerces da arquitetura da Symphony.
@@ -377,7 +412,8 @@ Dito isso, vamos analisar como aplicar o uso da função `createInjectable` nas 
 
 #### Action
 
-A primeira e mais natural é a `action`, faz parte da tríade `state > view > action`, responsável por produzir modificações no estado e consequente alteração na visualização, como discutido anteriormente, a assinatura padrão de `Injectable` é composto pela forma `State Monad :: State s a => s -> (a, s)`.
+A primeira e mais natural é a `action`, faz parte da tríade `state > view > action`, responsável por produzir modificações no estado e consequente alteração na visualização.
+Como discutido anteriormente, a assinatura padrão para `Action` é composto pela forma `State Monad :: State s a => s -> (a, s)`.
 
 ```javascript
 import { createComponent, createInjectable } from '@symphony.js/core'
@@ -439,6 +475,14 @@ component.setUserName('Jane Doe') // result undefined state.user.name === 'Jane 
 component.getUserName() // log 'Jane Doe'
 ```
 
+#### Interaction
+
+#### Reaction
+
+### Helper Functions
+
+#### createAction(definition): Injectable
+
 Como evidenciado, o processo de criação de uma `action` pode ser considerado repetitivo, seguindo um algoritmo de fácil compreensão:
 
 1. ler o estado presente no contexto
@@ -470,3 +514,7 @@ const getUserName = createAction({
   pure: identity,
 })
 ```
+
+#### createInteraction(definition): Injectable
+
+#### createReaction(definition): Injectable
