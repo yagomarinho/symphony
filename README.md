@@ -331,16 +331,33 @@ const reverseString = compose(join, reverse, split)
  * lógicas condicionais complexas, o que pode tornar a composição de funções
  * menos elegante.
  *
- * O exemplo abaixo ilustra um reducer que lida com diferentes tipos de ações,
- * introduzindo condições que podem dificultar a aplicação da composição funcional.
+ * O exemplo abaixo ilustra uma composição de reducers que lida com
+ * diferentes tipos de ações, introduzindo condições que podem dificultar a
+ * aplicação da composição funcional.
  */
 
-function reducer(state, action) {
+function nameReducer(state, action) {
   switch (action.type) {
     case 'name':
       return { ...state, name: action.payload }
+    default:
+      return state
+  }
+}
+
+function emailReducer(state, action) {
+  switch (action.type) {
     case 'email':
       return { ...state, email: action.payload }
+    default:
+      return state
+  }
+}
+
+function phoneReducer(state, action) {
+  switch (action.type) {
+    case 'phone':
+      return { ...state, phone: action.payload }
     default:
       return state
   }
@@ -351,10 +368,7 @@ function reducer(state, action) {
  * seria dificultado pela própria natureza incompátivel
  */
 
-const updateName = state => name => reducer(state, { type: 'name', payload: name })
-const updateEmail = state => email => reducer(state, { type: 'email', payload: email })
-
-const updateNameAndEmail = compose(updateEmail, updateName) // ERROR
+const updateRegistration = compose(phoneReducer, emailReducer, nameReducer) // ERROR
 
 /**
  * Essa dificuldade não significa que seja impossível de realizar, como disse
@@ -412,8 +426,21 @@ Dito isso, vamos analisar como aplicar o uso da função `createInjectable` nas 
 
 #### Action
 
-A primeira e mais natural é a `action`, faz parte da tríade `state > view > action`, responsável por produzir modificações no estado e consequente alteração na visualização.
-Como discutido anteriormente, a assinatura padrão para `Action` é composto pela forma `State Monad :: State s a => s -> (a, s)`.
+A primeira e mais natural subdivisão das `actions` em um componente Symphony é a `Action`. Essa subdivisão é parte integrante da tríade `state > view > action`, sendo responsável por gerar modificações no estado e, por consequência, alterações na visualização do componente.
+
+Conforme discutido anteriormente, a assinatura padrão para uma Action segue o padrão da State Monad:
+
+```javascript
+State Monad :: State s a => s -> (a, s)
+```
+
+Nesse contexto:
+
+- `(s)` representa o contexto atual do componente.
+- `(a)` é o resultado da ação.
+- O retorno da função é uma tupla `(a, s)`, onde a é o resultado da ação e s é o novo contexto após a ação.
+
+Para ilustrar melhor como criar e usar uma action injetável, considere o exemplo a seguir:
 
 ```javascript
 import { createComponent, createInjectable } from '@symphony.js/core'
@@ -424,23 +451,27 @@ const initialState = {
   },
 }
 
+// Action para obter o nome do usuário
 function getUserName() {
   function getUserNameToInject(context) {
     const { user } = context.state
 
-    return [user.name, context] // no context updates
+    // Retorna o nome do usuário como resultado da ação
+    // e mantém o contexto inalterado (nenhuma atualização no contexto)
+    return [user.name, context]
   }
 
   return createInjectable(getUserNameToInject)
 }
 
+// Action para definir o nome do usuário
 function setUserName(name) {
   function setUserNameToInject(context) {
     const { state } = context // get state
     const { user } = state // get user
 
+    // update context
     const updatedContext = {
-      // update context
       ...context,
       state: {
         ...state,
@@ -451,7 +482,9 @@ function setUserName(name) {
       },
     }
 
-    return [undefined, updatedContext] // return new context
+    // Retorna 'undefined' como resultado da ação (nenhum resultado específico)
+    // e retorna o novo contexto atualizado
+    return [undefined, updatedContext]
   }
 
   return createInjectable(setUserNameToInject)
@@ -475,7 +508,81 @@ component.setUserName('Jane Doe') // result undefined state.user.name === 'Jane 
 component.getUserName() // log 'Jane Doe'
 ```
 
+Essas ações exemplificam como criar e usar as actions injetáveis no contexto do ecossistema Symphony. A primeira ação, `getUserName`, retorna o nome do usuário a partir do estado atual do componente, sem realizar nenhuma alteração no contexto. A segunda ação, `setUserName`, atualiza o nome do usuário no estado do componente e retorna o contexto atualizado.
+
 #### Interaction
+
+A segunda subdivisão das `actions` em um componente Symphony é conhecida como `Interaction`. Essa subdivisão tem como objetivo principal facilitar a interação entre o componente e o ambiente externo. Em alguns padrões de desenvolvimento, essas ações também podem ser chamadas de controladores, mediadores, entre outros termos.
+
+Uma característica fundamental dessas Interactions é a sua capacidade de interagir com elementos fora do escopo do componente, como serviços externos, APIs, eventos do sistema ou qualquer recurso que não seja diretamente controlado pelo componente. Isso proporciona uma maneira organizada e desacoplada de gerenciar a comunicação entre o componente e o ambiente externo.
+
+É importante observar que, enquanto as `Actions` seguem a assinatura padrão da `State Monad (State s a => s -> (a, s))`, o que implica em retornar uma tupla com o resultado da ação e o estado atualizado, as Interactions têm um foco diferente. Elas frequentemente precisam lidar com operações assíncronas, como chamadas de rede, espera por eventos externos ou processamento demorado. Portanto, a rigidez da assinatura State Monad síncrona pode ser inadequada para esse cenário.
+
+Para acomodar operações assíncronas, as Interaction Actions adotam uma abordagem que se baseia na assinatura da Reader Monad:
+
+```javascript
+Reader Monad :: Reader e a => e -> a
+```
+
+Nesse contexto:
+
+- `(e)` representa o contexto do componente que será lido para fornecer as informações necessárias para ação externa.
+- `(a)` é o resultado da interação.
+- A função retorna o resultado da interação com base no contexto fornecido, que pode incluir informações sobre o estado do componente, configurações e outros dados relevantes.
+
+Para ilustrar melhor como criar e usar uma interaction injetável, considere o exemplo a seguir:
+
+```javascript
+import { createComponent, createInjectable } from '@symphony.js/core'
+
+const initialState = {
+  /* Declare State Here */
+}
+
+function save() {
+  function saveStateInteractionToInject(context) {
+    const { state, dependencies } = context
+
+    return dependencies.persistenceStorage(state)
+  }
+
+  return createInjectable(saveStateInteractionToInject)
+}
+
+async function persistenceStorage(state) {
+  // operação para persistir o estado aqui
+
+  const computation = {
+    // representação do resultado da operação
+  }
+
+  return computation
+}
+
+const config = {
+  actions: {
+    /* Declare Actions Here */
+  },
+  interactions: {
+    save,
+  },
+}
+
+const init = {
+  state: initialState,
+  dependencies: {
+    persistenceStorage,
+  },
+}
+
+const component = createComponent(config, init)
+
+// Faça as mudanças no estado através das actions
+// component.setState(...)
+// component.setState(...)
+
+component.save().then(/*computation result*/)
+```
 
 #### Reaction
 
