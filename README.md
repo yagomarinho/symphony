@@ -292,7 +292,7 @@ component.getCount() // log 0 (zero)
 
 Percebe-se pelo exemplo anterior que, o Symphony baseia-se em uma abordagem de "function composition" (composição de funções) como pedra angular de sua arquitetura. Isso significa que as funções são projetadas para serem puras e independentes, tornando o código mais legível, testável e modular. Através do uso das funções injetáveis e dos componentes, o Symphony promove uma arquitetura mais robusta e flexível, que facilita a construção e manutenção de aplicações complexas.
 
-Uma parte crucial para o entendimento dessa arquitetura são os monads em teoria das categorias, que é facilmente percebida na assinatura das Actions dos componentes. As assinaturas de ações seguem o padrão `State Monad :: State s a => s -> (a, s)`, onde o estado é recebido como entrada e, após a execução da ação, tanto o resultado quanto o estado modificado são retornados como uma lista. Isso permite uma composição fluente de ações, onde o resultado de uma ação pode ser encadeado como entrada para outra, mantendo uma manipulação clara e controlada do estado.
+Uma parte crucial para o entendimento dessa arquitetura são os monads em teoria das categorias, que é facilmente percebida na assinatura das Actions dos componentes. As assinaturas de ações seguem o padrão `State<S, A> = (state: S) => [A, S]`, onde o estado é recebido como entrada e, após a execução da ação, tanto o resultado quanto o estado modificado são retornados como uma lista. Isso permite uma composição fluente de ações, onde o resultado de uma ação pode ser encadeado como entrada para outra, mantendo uma manipulação clara e controlada do estado.
 
 #### E porque monads são tão importantes?
 
@@ -430,8 +430,8 @@ A primeira e mais natural subdivisão das `actions` em um componente Symphony é
 
 Conforme discutido anteriormente, a assinatura padrão para uma Action segue o padrão da State Monad:
 
-```javascript
-State Monad :: State s a => s -> (a, s)
+```typescript
+type State<S, A> = (state: S) => [A, S]
 ```
 
 Nesse contexto:
@@ -520,8 +520,8 @@ Uma característica fundamental dessas Interactions é a sua capacidade de inter
 
 Para acomodar operações assíncronas, as Interaction Actions adotam uma abordagem que se baseia na assinatura da Reader Monad:
 
-```javascript
-Reader Monad :: Reader e a => e -> a
+```typescript
+type Reader<E, A> = (env: E) => A
 ```
 
 Nesse contexto:
@@ -543,12 +543,15 @@ function save() {
   function saveStateInteractionToInject(context) {
     const { state, dependencies } = context
 
+    // Chama a função 'persistenceStorage' definida nas dependências
+    // para persistir o estado atual do componente
     return dependencies.persistenceStorage(state)
   }
 
   return createInjectable(saveStateInteractionToInject)
 }
 
+// Função assíncrona para simular a operação de persistência do estado
 async function persistenceStorage(state) {
   // operação para persistir o estado aqui
 
@@ -581,10 +584,15 @@ const component = createComponent(config, init)
 // component.setState(...)
 // component.setState(...)
 
+// Inicie a interação 'save' e trate o resultado assíncrono, se necessário
 component.save().then(/*computation result*/)
 ```
 
+Neste exemplo estendido, a interação save demonstra como empregar uma interação injetável. Essa interação pode envolver comportamento síncrono ou assíncrono, neste caso do exemplo, assíncrono, pois ela invoca a função `persistenceStorage`, que simula a persistência dos dados de estado do componente. A chamada component.save() inicia a interação, e a promessa resultante permite gerenciar o resultado da interação assim que a operação assíncrona for concluída.
+
 #### Reaction
+
+A última, e não menos importante, subdivisão das `actions` em um componente Symphony é a `Reaction`.
 
 ### Helper Functions
 
