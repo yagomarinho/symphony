@@ -436,9 +436,9 @@ type State<S, A> = (state: S) => [A, S]
 
 Nesse contexto:
 
-- `(s)` representa o contexto atual do componente.
-- `(a)` é o resultado da ação.
-- O retorno da função é uma tupla `(a, s)`, onde a é o resultado da ação e s é o novo contexto após a ação.
+- `(S)` representa o contexto atual do componente.
+- `(A)` é o resultado da ação.
+- O retorno da função é uma tupla `[A, S]`, onde a é o resultado da ação e s é o novo contexto após a ação.
 
 Para ilustrar melhor como criar e usar uma action injetável, considere o exemplo a seguir:
 
@@ -526,8 +526,8 @@ type Reader<E, A> = (env: E) => A
 
 Nesse contexto:
 
-- `(e)` representa o contexto do componente que será lido para fornecer as informações necessárias para ação externa.
-- `(a)` é o resultado da interação.
+- `(E)` representa o contexto do componente que será lido para fornecer as informações necessárias para ação externa.
+- `(A)` é o resultado da interação.
 - A função retorna o resultado da interação com base no contexto fornecido, que pode incluir informações sobre o estado do componente, configurações e outros dados relevantes.
 
 Para ilustrar melhor como criar e usar uma interaction injetável, considere o exemplo a seguir:
@@ -588,11 +588,85 @@ const component = createComponent(config, init)
 component.save().then(/*computation result*/)
 ```
 
-Neste exemplo estendido, a interação save demonstra como empregar uma interação injetável. Essa interação pode envolver comportamento síncrono ou assíncrono, neste caso do exemplo, assíncrono, pois ela invoca a função `persistenceStorage`, que simula a persistência dos dados de estado do componente. A chamada component.save() inicia a interação, e a promessa resultante permite gerenciar o resultado da interação assim que a operação assíncrona for concluída.
+Neste exemplo estendido, a interação `save` demonstra como empregar uma interação injetável. Essa interação pode envolver comportamento síncrono ou assíncrono, neste caso do exemplo, assíncrono, pois ela invoca a função `persistenceStorage`, que simula a persistência dos dados de estado do componente. A chamada `component.save()` inicia a interação, e a promessa resultante permite gerenciar o resultado da interação assim que a operação assíncrona for concluída.
 
 #### Reaction
 
-A última, e não menos importante, subdivisão das `actions` em um componente Symphony é a `Reaction`.
+A última, porém igualmente crucial, subdivisão das `actions` em um componente Symphony é denominada `Reaction`. Este tipo de ação desempenha um papel essencial ao atuar como uma função consumidora, destinada a consumir disparos de eventos, sejam eles originados de outros componentes ou composições.
+
+Assim como foi necessário ajustar a assinatura padrão para as ações do tipo `Interaction`, também é necessário adaptar a assinatura padrão para `Reaction`. Essas ações se assemelham mais ao que entendemos como uma função `reducer`, conforme exemplificado a seguir:
+
+```typescript
+type Reducer<S> = (context: S) => S
+```
+
+Nesse contexto:
+
+- (S) representa o estado do componente que será processado pela função redutora.
+- A função redutora aceita o estado atual como entrada e retorna o estado modificado como saída.
+- A função redutora é responsável por aplicar lógica para atualizar ou modificar o estado do componente com base em algum evento ou ação.
+
+Nas `Reaction`, o foco principal é processar o contexto atual e retornar uma versão potencialmente modificada desse contexto. Essa modificação é frequentemente realizada por meio da aplicação de uma lógica que é ativada em resposta a um evento específico. No ecossistema Symphony, as `Reaction` desempenham um papel crucial na atualização e adaptação dinâmica do estado do componente com base em eventos externos.
+
+À medida que os componentes Symphony interagem e se comunicam por meio de `Reaction`, eles conseguem sincronizar seus estados, atualizar suas visualizações e fornecer uma experiência coesa aos usuários, independentemente da complexidade da interação entre os diferentes elementos do sistema.
+
+Para ilustrar melhor como criar e usar uma reaction injetável, considere o exemplo a seguir:
+
+```javascript
+import { createComponent, createInjectable } from '@symphony.js/core'
+
+const initialState = { count: 0 }
+
+function increment() {
+  // Função interna da `Reaction` que será injetada
+  function incReactionToInject(context) {
+    const { state } = context
+    const updatedCount = state.count + 1
+
+    // Crie um novo contexto com o contador atualizado
+    const updatedContext = {
+      ...context,
+      state: {
+        ...state,
+        count: updatedCount,
+      },
+    }
+
+    return updatedContext
+  }
+
+  return createInjectable(incReactionToInject)
+}
+
+// Defina uma função `incSubscribe` serve como a função subscribe ao evento de
+// clique da DOM;
+// Importante notar que a função subscribe espera que seja retornada uma outra
+// função, conhecida como Subscription
+function incSubscribe(reactions) {
+  document.addEventListener('click', reactions.increment)
+
+  return () => {
+    document.removeEventListener('click', reactions.increment)
+  }
+}
+
+const config = {
+  reactions: {
+    increment,
+  },
+}
+
+const init = {
+  state: initialState,
+  subscribe: {
+    increment: incSubscribe,
+  },
+}
+
+const component = createComponent(config, init)
+```
+
+Este exemplo ilustra como uma `Reaction` pode ser usada para responder a eventos, como cliques, e como essa reaction pode ser configurada como uma função que se inscreve e cancela a inscrição em um evento específico. Isso permite que o componente Symphony responda dinamicamente a eventos externos, mantendo seu estado atualizado e adaptado de acordo com a lógica definida. Ao combinar Actions, Interactions e Reactions, o ecossistema Symphony fornece uma estrutura poderosa para construir componentes altamente interativos e responsivos.
 
 ### Helper Functions
 
