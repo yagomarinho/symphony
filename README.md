@@ -721,24 +721,56 @@ Vamos examinar como essa API funciona para otimizar esse processo:
 #### Factory
 
 ```typescript
+// tipagem para função construtora para Action
 function createAction(def: ActionDef): Injectable
-```
 
-```typescript
+// tipagem para definição da ação que será criada
 type ActionDef = ActionState | ActionReader | ActionInvoke | ActionReducer
+
+// interface simplificada que define a configuração base de uma ação
+interface Def<ComponentState, PureState> {
+  /**
+   * "type" é a descrição do tipo de action será criada
+   */
+  type: string
+
+  /**
+   * "lens" é o par de "getter" e "setter" para manipular o estado do componente
+   * e entregar para a função pure apenas a parte do estado em que se interessa
+   * utilizar.
+   */
+  lens?: {
+    getter?: (state: ComponentState) => PureState
+    setter?: (value: PureState, state: ComponentState) => ComponentState
+  }
+
+  /**
+   * "pure" é a função responsável por realizar a operação interna da action
+   */
+  pure: (...params: any[]) => any
+}
 ```
 
 1. ActionState
 
 ```typescript
-interface ActionState<ComponentState, PureState = ComponentState> {
+interface ActionState<ComponentState, PureState = ComponentState> extends Def<ComponentState, PureState = ComponentState> {
   type: 'state'
 
+  /**
+   * Para as funções que realizam modificações no estado, é obrigatório
+   * informar tanto o "getter", quanto o "setter" do lens, caso o lens
+   * seja diferente de "undefined".
+   */
   lens?: {
     getter: (state: ComponentState) => PureState
     setter: (value: PureState, state: ComponentState) => ComponentState
   }
 
+  /**
+   * A função "pure" para State Action terá o estado injetado como último
+   * parametro da função
+   */
   pure: (...params: [...any[], state: PureState]) => [any, PureState]
 }
 ```
@@ -746,13 +778,18 @@ interface ActionState<ComponentState, PureState = ComponentState> {
 2. ActionReader
 
 ```typescript
-interface ActionReader<ComponentState, PureState = ComponentState> {
+interface ActionReader<ComponentState, PureState = ComponentState>
+  extends Def<ComponentState, PureState> {
   type: 'reader'
 
   lens?: {
     getter: (state: ComponentState) => PureState
   }
 
+  /**
+   * A função "pure" para Reader Action terá interface similar a State
+   * Action
+   */
   pure: (...params: [...any[], state: PureState]) => any
 }
 ```
@@ -760,13 +797,25 @@ interface ActionReader<ComponentState, PureState = ComponentState> {
 3. ActionInvoke
 
 ```typescript
-interface ActionInvoke<ComponentState, PureState = ComponentState> {
+interface ActionInvoke<ComponentState, PureState = ComponentState>
+  extends Def<ComponentState, PureState> {
   type: 'invoke'
 
+  /**
+   * Apesar de realizar certa modificação no contexto do componente
+   * (adição de instruções invoke), a função invoke segue a linha de
+   * não realizar modificações no estado propriamente dito, por este
+   * motivo, apenas o "getter" é obrigatório para o lens, caso este
+   * seja diferente de "undefined".
+   */
   lens?: {
     getter: (state: ComponentState) => PureState
   }
 
+  /**
+   * A função "pure" para Reader Action terá interface similar a State
+   * Action
+   */
   pure: (
     ...params: [...any[], state: PureState]
   ) => [any, { type: string; payload: any }[]]
@@ -776,14 +825,26 @@ interface ActionInvoke<ComponentState, PureState = ComponentState> {
 4. ActionReducer
 
 ```typescript
-interface ActionInvoke<ComponentState, PureState = ComponentState> {
+interface ActionInvoke<ComponentState, PureState = ComponentState>
+  extends Def<ComponentState, PureState> {
   type: 'reducer'
 
+  /**
+   * Para as funções que realizam modificações no estado, é obrigatório
+   * informar tanto o "getter", quanto o "setter" do lens, caso o lens
+   * seja diferente de "undefined".
+   */
   lens?: {
     getter: (state: ComponentState) => PureState
     setter: (value: PureState, state: ComponentState) => ComponentState
   }
 
+  /**
+   * Diferentemente das outras alternativas de action, reducer segue a
+   * assinatura mais próxima de um reducer, recebendo como primeiro
+   * paramentro o estado e como segundo parametro a ação despachada no
+   * acionamento da ação.
+   */
   pure: (state: PureState, action: any) => PureState
 }
 ```
