@@ -161,7 +161,7 @@ const config = {
     // [descriptor: string | number | symbol]: Reaction
   },
 
-  view?: (state, actions) => `${state}` //(state, actions) => any,
+  view?: ({ state, actions }) => `${state}` //({ state, actions }) => any,
 
   observable?: true //boolean,
 }
@@ -219,7 +219,7 @@ component.interactWith()
 
 const { state, actions } = component.render()
 
-const stringView = (state, actions) => 'view'
+const stringView = ({ state, actions }) => 'view'
 const anotherComponent = createComponent({ view: stringView }, init)
 
 anotherComponent.render() // 'view'
@@ -668,18 +668,127 @@ const component = createComponent(config, init)
 
 Este exemplo ilustra como uma `Reaction` pode ser usada para responder a eventos, como cliques, e como essa reaction pode ser configurada como uma função que se inscreve e cancela a inscrição em um evento específico. Isso permite que o componente Symphony responda dinamicamente a eventos externos, mantendo seu estado atualizado e adaptado de acordo com a lógica definida. Ao combinar Actions, Interactions e Reactions, o ecossistema Symphony fornece uma estrutura poderosa para construir componentes altamente interativos e responsivos.
 
-### Helper Functions
+Tendo entendido como funcionam as 3 subdivisões de ações, vamos agora entender a interface do contexto do componente.
 
-#### createAction(definition): Injectable
+#### Component Context
+
+Um contexto de componente é um conjunto de informações e funcionalidades essenciais que são disponibilizadas para as funções injectable dentro de um componente Symphony. Ele serve como uma ponte de comunicação e acesso a recursos importantes, permitindo que as funções injectable interajam com o componente e seu ambiente de maneira flexível e dinâmica. O contexto é passado como um argumento para as funções injectable, permitindo-lhes acessar e manipular o estado do componente, dependências externas, gerenciar assinaturas e invocar ações.
+
+Aqui está uma descrição dos principais elementos presentes no contexto de componente:
+
+- State: O estado do componente é um objeto que contém as informações essenciais para o funcionamento do componente. Ele armazena dados que podem ser lidos e atualizados pelas funções injetáveis. Isso permite que as funções tenham acesso às informações necessárias para realizar suas tarefas.
+- Dependencies: As dependências são recursos externos ou serviços que as funções injectable podem precisar para realizar suas operações. Essas dependências são fornecidas no contexto como um objeto associativo, onde as chaves são descritores (como strings, números ou símbolos) que identificam as dependências e os valores são as próprias dependências.
+- Subscriptions: As assinaturas são mecanismos que permitem que as funções injectable reajam a eventos ou mudanças específicas no componente ou em suas dependências. Cada assinatura é associada a uma função que será chamada quando o evento ocorrer. Isso permite que as funções injectable respondam dinamicamente a mudanças sem a necessidade de constantemente verificar o estado.
+- Invoke: O array "invoke" contém objetos que representam ações a serem executadas pelo invoker do componente. Cada objeto de ação tem um tipo e uma carga útil (payload) associada. Essas ações podem ser executadas por funções injectable para interagir com o invoker do componente e disparar eventos específicos.
+
+Veja abaixo a interface para o contexto do componente Symphony:
+
+```typescript
+interface ComponentContext {
+  state: any
+
+  dependencies: {
+    [descriptor: string | number | symbol]: any
+  }
+
+  subscriptions: { [x: string | number | symbol]: () => void }
+
+  invoke: { type: string; payload: any }[]
+}
+```
+
+O contexto de componente é uma parte crucial da arquitetura do Symphony, pois permite que as funções injectable sejam executadas de maneira isolada, sem a necessidade de conhecimento direto sobre o componente em si. Isso promove a reutilização, modularidade e desacoplamento de diferentes partes do código, tornando o desenvolvimento mais eficiente e facilitando a manutenção. As funções injectable podem aproveitar o contexto para acessar recursos, tomar decisões baseadas em estado e interagir com outros componentes ou serviços de forma elegante e adaptável.
+
+## Helper Functions
+
+Tendo em vista que um dos objetivos da lib é ser "Developer Friendly", sempre que ficar evidenciado durante o processo de teste e feedback a utilização recorrente de alguma funcionalidade que leve a uma abstração, é provável que essa funcionalidade seja adicionada como uma função auxiliar.
+
+Vejamos abaixo alguns exemplos:
+
+### createAction(definition): Injectable
 
 Como evidenciado, o processo de criação de uma `action` pode ser considerado repetitivo, seguindo um algoritmo de fácil compreensão:
 
-1. ler o estado presente no contexto
-2. realizar a operação
-3. atualizar o contexto
-4. retornar a combinação entre resultado e contexto atualizado
+1. ler o estado presente no contexto;
+2. realizar a operação;
+3. atualizar o contexto;
+4. retornar a combinação entre resultado e contexto atualizado.
 
-Devido a essa repetição, a API `createAction` foi disponibilizada para simplificar a construção de actions, eliminando a necessidade de reproduzir essas etapas em cada função. Vamos examinar como essa API funciona para otimizar esse processo:
+Devido a essa repetição, a API `createAction` foi disponibilizada para simplificar a construção de actions, eliminando a necessidade de reproduzir essas etapas em cada função.
+
+Vamos examinar como essa API funciona para otimizar esse processo:
+
+#### Factory
+
+```typescript
+function createAction(def: ActionDef): Injectable
+```
+
+```typescript
+type ActionDef = ActionState | ActionReader | ActionInvoke | ActionReducer
+```
+
+1. ActionState
+
+```typescript
+interface ActionState<ComponentState, PureState = ComponentState> {
+  type: 'state'
+
+  lens?: {
+    getter: (state: ComponentState) => PureState
+    setter: (value: PureState, state: ComponentState) => ComponentState
+  }
+
+  pure: (...params: [...any[], state: PureState]) => [any, PureState]
+}
+```
+
+2. ActionReader
+
+```typescript
+interface ActionReader<ComponentState, PureState = ComponentState> {
+  type: 'reader'
+
+  lens?: {
+    getter: (state: ComponentState) => PureState
+  }
+
+  pure: (...params: [...any[], state: PureState]) => any
+}
+```
+
+3. ActionInvoke
+
+```typescript
+interface ActionInvoke<ComponentState, PureState = ComponentState> {
+  type: 'invoke'
+
+  lens?: {
+    getter: (state: ComponentState) => PureState
+  }
+
+  pure: (
+    ...params: [...any[], state: PureState]
+  ) => [any, { type: string; payload: any }[]]
+}
+```
+
+4. ActionReducer
+
+```typescript
+interface ActionInvoke<ComponentState, PureState = ComponentState> {
+  type: 'reducer'
+
+  lens?: {
+    getter: (state: ComponentState) => PureState
+    setter: (value: PureState, state: ComponentState) => ComponentState
+  }
+
+  pure: (state: PureState, action: any) => PureState
+}
+```
+
+#### Exemplos
 
 ```javascript
 import { createAction, createComponent } from '@symphony.js/core'
@@ -687,23 +796,81 @@ import { createAction, createComponent } from '@symphony.js/core'
 const initialState = {
   user: {
     name: 'John Doe',
+    email: 'john@example.com',
   },
 }
 
-const identity = x => x
+const userLens = {
+  getter: ({ user }) => user,
+  setter: (user, state) => ({ ...state, user }),
+}
 
 const userNameLens = {
-  getter: state => state.user.name,
+  getter: ({ user }) => user.name,
   setter: (name, state) => ({ ...state, user: { ...state.user, name } }),
 }
 
 const getUserName = createAction({
   type: 'reader',
   lens: userNameLens,
-  pure: identity,
+  pure: name => name, // identity fn
 })
+
+const serUserName = createAction({
+  type: 'state',
+  lens: userNameLens,
+  pure: name => [undefined, name],
+})
+
+const saveState = createAction({
+  type: 'invoke',
+  // lens: undefined
+  pure: (state /* neste caso o estado de pure será o estado do próprio componente*/) => [
+    undefined,
+    [{ type: 'persistenceStorage', payload: state }],
+    /* retornar a lista de invoke como segundo parametro da tupla */
+    /* o "type" de invoke é o nome da "Interaction" que deve ser invocada */
+    ,
+  ],
+})
+
+const userDispatch = createAction({
+  type: 'reducer',
+  lens: userLens,
+  pure: (user, action) => {
+    switch (action.type) {
+      case 'name':
+        return { ...user, name: action.payload }
+      case 'email':
+        return { ...user, email: action.payload }
+      default:
+        return user
+    }
+  },
+})
+
+const config = {
+  actions: {
+    getUserName,
+    setUserName,
+    saveState,
+    userDispatch,
+  },
+  interactions: {
+    persistenceStorage, // para a chamada invoke
+  },
+}
+
+const init = {
+  state: initialState,
+  dependencies: {
+    storageDependency, // persistenceStorage dependencies
+  },
+}
+
+const component = createComponent(config, init)
 ```
 
-#### createInteraction(definition): Injectable
+### createInteraction(definition): Injectable
 
-#### createReaction(definition): Injectable
+### createReaction(definition): Injectable
